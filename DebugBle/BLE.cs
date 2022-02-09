@@ -207,6 +207,7 @@ public class BLE
 
     public static bool WritePackage(string deviceId, string serviceUuid, string characteristicUuid, byte[] data)
     {
+        Debug.Log("Writing package");
         Impl.BLEData packageSend;
         packageSend.buf = new byte[512];
         packageSend.size = (short)data.Length;
@@ -214,14 +215,20 @@ public class BLE
         packageSend.serviceUuid = serviceUuid;
         packageSend.characteristicUuid = characteristicUuid;
         for (int i = 0; i < data.Length; i++)
+        {
+            Debug.Log(data[i]);
             packageSend.buf[i] = data[i];
+        }
+        Debug.Log(packageSend.buf);
         return Impl.SendData(in packageSend, true);
     }
 
     public static void ReadPackage()
     {
+        Debug.Log("Trying to read package ...");
         Impl.BLEData packageReceived;
         bool result = Impl.PollData(out packageReceived, true);
+        Debug.Log("Got some result: " + result);
         if (result)
         {
             if (packageReceived.size > 512)

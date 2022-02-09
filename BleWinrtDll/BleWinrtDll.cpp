@@ -13,15 +13,15 @@
 using namespace std;
 
 using namespace winrt;
-using namespace Windows::Foundation;
-using namespace Windows::Foundation::Collections;
-using namespace Windows::Web::Syndication;
+using namespace winrt::Windows::Foundation;
+using namespace winrt::Windows::Foundation::Collections;
+using namespace winrt::Windows::Web::Syndication;
 
-using namespace Windows::Devices::Bluetooth;
-using namespace Windows::Devices::Bluetooth::GenericAttributeProfile;
-using namespace Windows::Devices::Enumeration;
+using namespace winrt::Windows::Devices::Bluetooth;
+using namespace winrt::Windows::Devices::Bluetooth::GenericAttributeProfile;
+using namespace winrt::Windows::Devices::Enumeration;
 
-using namespace Windows::Storage::Streams;
+using namespace winrt::Windows::Storage::Streams;
 
 union to_guid
 {
@@ -533,7 +533,7 @@ fire_and_forget SendDataAsync(BLEData data, condition_variable* signal, bool* re
 			DataWriter writer;
 			writer.WriteBytes(array_view<uint8_t const> (data.buf, data.buf + data.size));
 			IBuffer buffer = writer.DetachBuffer();
-			auto status = co_await characteristic.WriteValueAsync(buffer, GattWriteOption::WriteWithoutResponse);
+			auto status = co_await characteristic.WriteValueAsync(buffer, GattWriteOption::WriteWithResponse);
 			if (status != GattCommunicationStatus::Success)
 				saveError(L"%s:%d Error writing value to characteristic with uuid %s", __WFILE__, __LINE__, data.characteristicUuid);
 			else if (result != 0)

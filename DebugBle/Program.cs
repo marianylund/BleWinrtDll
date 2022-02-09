@@ -12,7 +12,6 @@ namespace DebugBle
         static void Main(string[] args)
         {
             Console.WriteLine("You can use this program to test the BleWinrtDll.dll. Make sure your Computer has Bluetooth enabled.");
-
             BLE ble = new BLE();
             string deviceId = null;
 
@@ -20,7 +19,7 @@ namespace DebugBle
             scan.Found = (_deviceId, deviceName) =>
             {
                 Console.WriteLine("found device with name: " + deviceName);
-                if (deviceId == null && deviceName == "CynteractGlove")
+                if (deviceId == null && deviceName == "Arduino")
                     deviceId = _deviceId;
             };
             scan.Finished = () =>
@@ -40,20 +39,21 @@ namespace DebugBle
             }
 
             ble.Connect(deviceId,
-                "{f6f04ffa-9a61-11e9-a2a3-2a2ae2dbcce4}", 
-                new string[] { "{f6f07c3c-9a61-11e9-a2a3-2a2ae2dbcce4}",
-                    "{f6f07da4-9a61-11e9-a2a3-2a2ae2dbcce4}",
-                    "{f6f07ed0-9a61-11e9-a2a3-2a2ae2dbcce4}" });
+                "{19b10000-e8f2-537e-4f6c-d104768a1214}", 
+                new string[] { "{19b10001-e8f2-537e-4f6c-d104768a1214}" });
 
             for(int guard = 0; guard < 2000; guard++)
             {
-                BLE.ReadPackage();
-                BLE.WritePackage(deviceId,
-                    "{f6f04ffa-9a61-11e9-a2a3-2a2ae2dbcce4}",
-                    "{f6f07ffc-9a61-11e9-a2a3-2a2ae2dbcce4}",
-                    new byte[] { 0, 1, 2 });
+                //Console.WriteLine("Trying to read the package ...");
+                //BLE.ReadPackage();
+                Console.WriteLine("Trying to write to char ...");
+                bool ok = BLE.WritePackage(deviceId,
+                    "{19b10000-e8f2-537e-4f6c-d104768a1214}",
+                    "{19b10001-e8f2-537e-4f6c-d104768a1214}",
+                    new byte[] { 1 });
+                Console.WriteLine(ok);
                 Console.WriteLine(BLE.GetError());
-                Thread.Sleep(5);
+                Thread.Sleep(500);
             }
 
             Console.WriteLine("Press enter to exit the program...");
