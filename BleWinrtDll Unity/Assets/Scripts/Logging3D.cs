@@ -3,11 +3,12 @@ using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 public class Logging3D : MonoBehaviour
 {
-    public Text consoleText;
-    private int maxMsg = 8;
+    public TMP_Text consoleText;
+    public int maxMsg = 5;
 
     private Queue<string> msg = new Queue<string>();
 

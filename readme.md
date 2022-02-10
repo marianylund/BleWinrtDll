@@ -1,10 +1,21 @@
 # Unity project with BleWinrtDll configured for HoloLens 2 + Arduino BLE code
 
 To try it out in Unity, open the project "BleWinrtDll Unity" in Unity. Then start the scene "Assets/Scenes/Demo.scene".
+To test on HoloLens, build as you would from Unity project. Also Arduino code included.
 
-This VisualStudio-project compiles to a C++-dll that can be imported into Unity. It wraps a part of the [UWP BLE API](https://docs.microsoft.com/de-de/windows/uwp/devices-sensors/bluetooth-low-energy-overview) inside a dll. The dll can be simply dropped into your Unity project and be used in the Unity Editor and the Windows standalone version.
+My goal was to send data from Arduino to HoloLens 2 through BLE created in Unity Engine.
 
-[comment]: <> (![Screenshot of the demo scene.]&#40;screen.jpg&#41;)
+[comment]: <> (I describe this process in the medium blog.)
+This repo is forked from https://github.com/adabru/BleWinrtDll, where the Dll is configured to work with UWP Unity.
+It worked well with Arduino and Unity Editor, but did not translate well to HoloLens.
+So I include here adjusted Unity Project ready to be built to HoloLens together with Arduino sketch used. For more information check out the original repo: https://github.com/adabru/BleWinrtDll
+
+
+|    ![alt text][blemenu]    |                                ![alt text][blemenuconnected]                                |
+|:--------------------------:|:-------------------------------------------------------------------------------------------:|
+| Menu showing in HoloLens 2 | After clicking "Scan", it automatically connects to the described device and characteristic |
+
+Clicking "Write" will send 0, 1, 2 or 3 at random to Arduino. It will change colours according to the number.
 
 The `Demo.scene` in this repo uses threads, the script is taken from [BleWinrtDll-Unity-Demo](https://github.com/Joelx/BleWinrtDll-Unity-Demo). 
 
@@ -18,21 +29,25 @@ The `Demo.scene` in this repo uses threads, the script is taken from [BleWinrtDl
 
 ## Build
 
-There is a prebuilt dll included in this repo, `BleWinrtDll Unity\Assets\BleWinrtDll.dll` or `DebugBle\BleWinrtDll.dll` (both are the same). But you can also build the dll yourself in VisualStudio. Follow these steps:
+### Arduino Nano BLE
+Arduino Code is included in ArduinoCode -> bleledgesture.ino. Build it as you would the usual sketch. 
+For the code to start running, you have to have the Serial Monitor open: ![alt text][arduinomonitor]
 
-- Open the file BleWinrtDll.sln with VisualStudio (tested with Community 2019). You may be asked to install VisualStudio components when you open the project. The needed components are C++ Desktop and UWP, or if you want to save space, just the single components "MSVC C++ Buildtools", "Windows 10 SDK", ".NET Framework 4.7.2 SDK".
-- Choose configuration "Release" and "ARM64" (I think it must match your machine architecture).
-- In the project explorer, right-click the project "BleWinrtDll" and choose "Compile".
-- If you run into the error `wait_for is not a member of winrt::impl`, follow the steps on https://github.com/adabru/BleWinrtDll/issues/16 and leave a thumbs up. If enough thumbs accumulate, someone or me will try to make that more convenient.
-- Wait until the compilation finishes successfully.
+### HoloLens 2 Application
+Build it as you would the usual application, you can follow the [guide from Microsoft](https://docs.microsoft.com/en-us/learn/modules/learn-mrtk-tutorials/1-7-exercise-hand-interaction-with-objectmanipulator).
 
-Now you find the file `BleWinrtDll.dll` in the folder `ARM64/Release`. You can copy this dll into your Unity-project. To try it out, you can also copy the file into the `DebugBle` folder (replacing the existing file) and start the DebugBle project. If your computer has bluetooth enabled, you should see some scanned bluetooth devices. If you modify the file `DebugBle/Program.cs` and change the device name, service UUID and characteristic UUIDs to match your specific BLE device, you should also receive some packages from your BLE device.
+### Updating Dll
+You can follow instructions in the original repository. The difference now is that you need two Dlls, one for Unity Editor and one for HoloLens.
+For HoloLens choose configuration "Release" and "ARM64" and "x64" for Unity Editor when building.
+Rename the Dll for Unity Editor to "BleWinrtDllx64" and replace them in the Unity project Assets folder.
+You might have to reconfigure the Dlls in Unity. To do so click on the Dll and choose configurations shown in images:
 
-## Background
+| ![alt text][editorconfig] | ![alt text][holodllconfig] |
+|:-------------------------:|:--------------------------:|
+|          Editor           |          Hololens          |
 
-My goal was to send data from Arduino to HoloLens 2 through BLE created in Unity Engine. 
-
-[comment]: <> (I describe this process in the medium blog.)
-This repo is forked from https://github.com/adabru/BleWinrtDll, where the Dll is configured to work with UWP Unity. 
-It worked well with Arduino and Unity Editor, but did not translate well to HoloLens. 
-So I include here adjusted Unity Project ready to be built to HoloLens together with Arduino Code used. For more information check out the original repo: https://github.com/adabru/BleWinrtDll
+[holodllconfig]: ./img/hololensdllconfig.png "Configuration of HoloLens Dll"
+[editorconfig]: ./img/unityeditordllconfig.png "Configuration of Unity Editor Dll"
+[arduinomonitor]: ./img/arduinoserialmonitor.png "Example of how Arduino Serial Monitor would look"
+[blemenu]: ./img/blemenu.jpg "Menu in HoloLens when starting the application"
+[blemenuconnected]: ./img/blemenuconnected.jpg "Menu in HoloLens after pressing Scan and connecting to Arduino"

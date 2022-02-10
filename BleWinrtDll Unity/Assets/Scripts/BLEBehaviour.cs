@@ -4,11 +4,12 @@ using System.Collections.Generic;
 using UnityEngine;
 using System.Threading;
 using UnityEngine.UI;
+using TMPro;
 using Random = System.Random;
 
 public class BLEBehaviour : MonoBehaviour
 {
-    public Text TextDiscoveredDevices, TextIsScanning, TextTargetDeviceConnection, TextTargetDeviceData;
+    public TMP_Text TextIsScanning, TextTargetDeviceConnection, TextTargetDeviceData, TextDiscoveredDevices;
     public Button ButtonStartScan;
     
     // Change this to match your device.
