@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Text;
 using UnityEngine;
 using System.Threading;
 using UnityEngine.UI;
@@ -10,35 +11,39 @@ using Random = System.Random;
 public class BLEBehaviour : MonoBehaviour
 {
     public TMP_Text TextIsScanning, TextTargetDeviceConnection, TextTargetDeviceData, TextDiscoveredDevices;
-    public Button ButtonStartScan;
+    public Transform selectedObject;
     
     // Change this to match your device.
     string targetDeviceName = "Arduino";
     string serviceUuid = "{19b10000-e8f2-537e-4f6c-d104768a1214}";
     string[] characteristicUuids = {
-        "{19b10001-e8f2-537e-4f6c-d104768a1214}",      // CUUID 1
-        //    "{00002a01-0000-1000-8000-00805f9b34fb}",       // CUUID 2
-        //   "{00002a57-0000-1000-8000-00805f9b34fb}",       // CUUID 3
+        //"{19b10001-e8f2-537e-4f6c-d104768a1214}",      // CUUID 1
+        // "{19b10002-e8f2-537e-4f6c-d104768a1214}",      // CUUID 1
+        // "{19b10003-e8f2-537e-4f6c-d104768a1214}",      // CUUID 1
+        "{19b10004-e8f2-537e-4f6c-d104768a1214}",      // CUUID 1
     };
 
     BLE ble;
     BLE.BLEScan scan;
-    bool isScanning = false, isConnected = false;
+    private bool isScanning = false, isConnected = false;
     string deviceId = null;  
     IDictionary<string, string> discoveredDevices = new Dictionary<string, string>();
     int devicesCount = 0;
     byte[] valuesToWrite;
+    private Quaternion newRotation;
+    private string result;
 
     // BLE Threads 
     Thread scanningThread, connectionThread, readingThread, writingThread;
-    
+
     void Start()
     {
         ble = new BLE();
         
         TextTargetDeviceConnection.text = targetDeviceName + " not found.";
-        //readingThread = new Thread(ReadBleData);
+        readingThread = new Thread(ReadBleData);
     }
+
 
     void Update()
     {  
@@ -65,7 +70,7 @@ public class BLEBehaviour : MonoBehaviour
             // Target device is connected and GUI knows.
             if (ble.isConnected && isConnected)
             {
-                //UpdateGuiText("writeData");
+                UpdateGuiText("readData");
             }
             // Target device is connected, but GUI hasn't updated yet.
             else if (ble.isConnected && !isConnected)
@@ -119,7 +124,7 @@ public class BLEBehaviour : MonoBehaviour
             if (deviceId == null)
                 deviceId = "-1";
         };
-        while (deviceId == null)
+        while (deviceId == null) 
             Thread.Sleep(500);
         scan.Cancel();
         scanningThread = null;
@@ -173,17 +178,15 @@ public class BLEBehaviour : MonoBehaviour
             case "connected":
                 TextTargetDeviceConnection.text = "Connected to target device:\n" + targetDeviceName;
                 break;
-            case "writeData":
-                // if (!readingThread.IsAlive)
-                // {
-                //     readingThread = new Thread(ReadBleData);
-                //     readingThread.Start();
-                // }
-                // if (remoteAngle != lastRemoteAngle)
-                // {
-                //     TextTargetDeviceData.text = "Remote angle: " + remoteAngle;
-                //     lastRemoteAngle = remoteAngle;
-                // }
+            case "readData":
+                if (!readingThread.IsAlive)
+                {
+                    readingThread = new Thread(ReadBleData);
+                    readingThread.Start();
+                    
+                    TextTargetDeviceData.text = "Quaternion: " + result;
+                    selectedObject.rotation = newRotation;
+                }
                 break;
         }
     }
@@ -209,7 +212,7 @@ public class BLEBehaviour : MonoBehaviour
             ble.Close();
             scanningThread.Abort();
             connectionThread.Abort();
-            //readingThread.Abort();
+            readingThread.Abort();
             writingThread.Abort();
         } catch(NullReferenceException e)
         {
@@ -248,12 +251,12 @@ public class BLEBehaviour : MonoBehaviour
     
     private void ReadBleData(object obj)
     {
-        //byte[] packageReceived = BLE.ReadBytes();
-        // Convert little Endian.
-        // In this example we're interested about an angle
-        // value on the first field of our package.
-        // remoteAngle = packageReceived[0];
-        // Debug.Log("Angle: " + remoteAngle);
-        //Thread.Sleep(100);
+        byte[] packageReceived = BLE.ReadBytes(out string charId);
+        result = Encoding.UTF8.GetString(packageReceived).Split(';')[0]; // ; signals the end of the message data
+        // Quaternion arrives of the form: f,f,f,f; where f is a float
+        //Debug.Log("result: " + result);
+        string[] splitResult = result.Split(',');
+        newRotation = new Quaternion(float.Parse(splitResult[0]), float.Parse(splitResult[1]), float.Parse(splitResult[2]), float.Parse(splitResult[3]));
     }
+
 }

@@ -244,6 +244,28 @@ public class BLE
                 + " and size " + packageReceived.size + " use packageReceived.buf to access the data.");
         }
     }
+    
+    public static byte[] ReadBytes(out string charId)
+    {
+        Impl.BLEData packageReceived;
+        bool result = Impl.PollData(out packageReceived, true);
+
+        if (result)
+        {
+            //Debug.Log("Size: " + packageReceived.size);
+            //Debug.Log("From: " + packageReceived.deviceId);
+
+            if (packageReceived.size > 512)
+                throw new ArgumentOutOfRangeException("Please keep your ble package at a size of maximum 512, cf. spec!\n" 
+                                                      + "This is to prevent package splitting and minimize latency.");
+            charId = packageReceived.characteristicUuid;
+            return packageReceived.buf;
+        } else
+        {
+            charId = "";
+            return new byte[] { 0x0 };
+        }
+    }
 
     public void Close()
     {
