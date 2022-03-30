@@ -17,10 +17,10 @@ public class BLEBehaviour : MonoBehaviour
     string targetDeviceName = "Arduino";
     string serviceUuid = "{19b10000-e8f2-537e-4f6c-d104768a1214}";
     string[] characteristicUuids = {
-        //"{19b10001-e8f2-537e-4f6c-d104768a1214}",      // CUUID 1
+        "{19b10001-e8f2-537e-4f6c-d104768a1214}",      // writeData
         // "{19b10002-e8f2-537e-4f6c-d104768a1214}",      // CUUID 1
         // "{19b10003-e8f2-537e-4f6c-d104768a1214}",      // CUUID 1
-        "{19b10004-e8f2-537e-4f6c-d104768a1214}",      // CUUID 1
+        "{19b10004-e8f2-537e-4f6c-d104768a1214}",      // readData
     };
 
     BLE ble;
@@ -251,10 +251,15 @@ public class BLEBehaviour : MonoBehaviour
         Debug.Log($"Writing status: {ok}. {BLE.GetError()}");
         writingThread = null;
     }
-    
+
     private void ReadBleData(object obj)
     {
         byte[] packageReceived = BLE.ReadBytes(out string charId);
+        if (charId == characteristicUuids[0])
+        {
+            Debug.Log("Reading data from writeCharacteristic: " + Encoding.UTF8.GetString(packageReceived));
+            return;
+        }
         result = Encoding.UTF8.GetString(packageReceived).Split(';')[0]; // ; signals the end of the message data
         // Quaternion arrives of the form: f,f,f,f; where f is a float
         //Debug.Log("result: " + result);
