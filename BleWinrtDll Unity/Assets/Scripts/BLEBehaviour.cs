@@ -1,17 +1,17 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 using System.Threading;
-using UnityEngine.UI;
 using TMPro;
 using Random = System.Random;
 
 public class BLEBehaviour : MonoBehaviour
 {
+    public delegate void BLEEvent(Vector3 eulerRotation);
+    public BLEEvent OnDataRead;
+
     public TMP_Text TextIsScanning, TextTargetDeviceConnection, TextTargetDeviceData, TextDiscoveredDevices;
-    public Transform selectedObject;
     
     // Change this to match your device.
     string targetDeviceName = "Arduino";
@@ -25,12 +25,13 @@ public class BLEBehaviour : MonoBehaviour
 
     BLE ble;
     BLE.BLEScan scan;
-    private bool isScanning = false, isConnected = false;
+    public bool isScanning = false, isConnected = false;
     string deviceId = null;  
     IDictionary<string, string> discoveredDevices = new Dictionary<string, string>();
     int devicesCount = 0;
     byte[] valuesToWrite;
     private Quaternion newRotation;
+    private Vector3 newEulerRotation;
     private string result;
 
     // BLE Threads 
@@ -184,8 +185,10 @@ public class BLEBehaviour : MonoBehaviour
                     readingThread = new Thread(ReadBleData);
                     readingThread.Start();
                     
-                    TextTargetDeviceData.text = "Quaternion: " + result;
-                    selectedObject.rotation = newRotation;
+                    //TextTargetDeviceData.text = "Quaternion: " + result;
+                    TextTargetDeviceData.text = "Euler: " + result;
+                    //selectedObject.rotation = newRotation;
+                    OnDataRead?.Invoke(newEulerRotation);
                 }
                 break;
         }
@@ -256,7 +259,9 @@ public class BLEBehaviour : MonoBehaviour
         // Quaternion arrives of the form: f,f,f,f; where f is a float
         //Debug.Log("result: " + result);
         string[] splitResult = result.Split(',');
-        newRotation = new Quaternion(float.Parse(splitResult[0]), float.Parse(splitResult[1]), float.Parse(splitResult[2]), float.Parse(splitResult[3]));
+        //newRotation = new Quaternion(float.Parse(splitResult[0]), float.Parse(splitResult[1]), float.Parse(splitResult[2]), float.Parse(splitResult[3]));
+        Vector3 ahrs = new Vector3(float.Parse(splitResult[0]), float.Parse(splitResult[1]), float.Parse(splitResult[2]));
+        newEulerRotation = new Vector3(-ahrs.y, ahrs.z, -ahrs.x);
     }
 
 }
