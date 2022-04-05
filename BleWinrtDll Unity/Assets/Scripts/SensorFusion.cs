@@ -1,6 +1,5 @@
 using System;
 using UnityEngine;
-using UnityEngine.Serialization;
 
 public class SensorFusion : MonoBehaviour
 {
@@ -10,7 +9,7 @@ public class SensorFusion : MonoBehaviour
     
     private Vector3 _lastVuforiaLocalRotation = Vector3.zero;
     private Vector3 _lastVuforiaPosition = Vector3.zero;
-    private Vector3 _lastBleRotation = Vector3.zero;
+    private Quaternion _lastBleRotation = Quaternion.identity;
     [SerializeField]
     private Vector3 lastRotationDifference = Vector3.zero;
     
@@ -27,21 +26,25 @@ public class SensorFusion : MonoBehaviour
     /// </summary>
     public void CalibrateBLEVuforia()
     {
-        _lastVuforiaLocalRotation = vuforiaSimulationObject.localEulerAngles;
-        _lastVuforiaPosition = vuforiaSimulationObject.position;
-
-        lastRotationDifference = _lastVuforiaLocalRotation - _lastBleRotation;
+        Quaternion diff = vuforiaSimulationObject.rotation * Quaternion.Inverse(_lastBleRotation);
+        Debug.Log("Rotation difference: " + diff + ", euler: " + diff.eulerAngles);
+        _ble.StartWritingHandler(diff);
+        // _lastVuforiaLocalRotation = vuforiaSimulationObject.localEulerAngles;
+        // _lastVuforiaPosition = vuforiaSimulationObject.position;
+        //
+        // lastRotationDifference = _lastVuforiaLocalRotation - _lastBleRotation;
     }
 
-    private void Update()
+    private void FixedUpdate()
     {
-        selectedObject.rotation = Quaternion.Euler(_lastBleRotation + lastRotationDifference);
+        selectedObject.rotation = _lastBleRotation;
     }
 
-    private void GetData(Vector3 eulerRotation)
+    private void GetData(Quaternion rotation)
     {
         //selectedObject.rotation = Quaternion.Euler(eulerRotation);
-        _lastBleRotation = eulerRotation;
+        _lastBleRotation = rotation;
+        //_lastBleRotation = Quaternion.Inverse(rotation);
     }
 
     private void OnDestroy()

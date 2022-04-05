@@ -4,11 +4,12 @@ using System.Text;
 using UnityEngine;
 using System.Threading;
 using TMPro;
+using UnityEngine.Serialization;
 using Random = System.Random;
 
 public class BLEBehaviour : MonoBehaviour
 {
-    public delegate void BLEEvent(Vector3 eulerRotation);
+    public delegate void BLEEvent(Quaternion rotation);
     public BLEEvent OnDataRead;
 
     public TMP_Text TextIsScanning, TextTargetDeviceConnection, TextTargetDeviceData, TextDiscoveredDevices;
@@ -18,7 +19,7 @@ public class BLEBehaviour : MonoBehaviour
     string serviceUuid = "{19b10000-e8f2-537e-4f6c-d104768a1214}";
     string[] characteristicUuids = {
         "{19b10001-e8f2-537e-4f6c-d104768a1214}",      // writeData
-        // "{19b10002-e8f2-537e-4f6c-d104768a1214}",      // CUUID 1
+        "{19b10002-e8f2-537e-4f6c-d104768a1214}",      // bool if previous has been changed
         // "{19b10003-e8f2-537e-4f6c-d104768a1214}",      // CUUID 1
         "{19b10004-e8f2-537e-4f6c-d104768a1214}",      // readData
     };
@@ -34,6 +35,11 @@ public class BLEBehaviour : MonoBehaviour
     private Vector3 newEulerRotation;
     private string result;
 
+    [SerializeField]
+    private float readingFrameRate = 0.3f; // Sample rate should be around 30 Hz
+    private float _readingTimer = 0f;
+    private int _frames = 0;
+
     // BLE Threads 
     Thread scanningThread, connectionThread, readingThread, writingThread;
 
@@ -47,7 +53,7 @@ public class BLEBehaviour : MonoBehaviour
 
 
     void Update()
-    {  
+    {
         if (isScanning)
         {
             if (discoveredDevices.Count > devicesCount)
@@ -69,8 +75,11 @@ public class BLEBehaviour : MonoBehaviour
         if (deviceId != null && deviceId != "-1")
         {
             // Target device is connected and GUI knows.
-            if (ble.isConnected && isConnected)
+            if (ble.isConnected && isConnected && _readingTimer > readingFrameRate)
             {
+                //Debug.Log($"timer: {_readingTimer}, frameRate: {readingFrameRate}, frames: {_frames}");
+                _readingTimer = 0f;
+                _frames = 0;
                 UpdateGuiText("readData");
             }
             // Target device is connected, but GUI hasn't updated yet.
@@ -84,6 +93,9 @@ public class BLEBehaviour : MonoBehaviour
                 TextTargetDeviceConnection.text = "Found target device:\n" + targetDeviceName;
             } 
         }
+
+        _readingTimer += Time.deltaTime;
+        _frames += 1;
     }
     
     public void StartScanHandler()
@@ -188,7 +200,7 @@ public class BLEBehaviour : MonoBehaviour
                     //TextTargetDeviceData.text = "Quaternion: " + result;
                     TextTargetDeviceData.text = "Euler: " + result;
                     //selectedObject.rotation = newRotation;
-                    OnDataRead?.Invoke(newEulerRotation);
+                    OnDataRead?.Invoke(newRotation);
                 }
                 break;
         }
@@ -223,19 +235,17 @@ public class BLEBehaviour : MonoBehaviour
         }        
     }
 
-    public void StartWritingHandler()
+    public void StartWritingHandler(Quaternion newCalibratedRotation)
     {
         if (deviceId == "-1" || !isConnected || (writingThread?.IsAlive ?? false))
         {
             Debug.Log("Cannot write yet");
             return;
         }
-        
-        byte[] bytes = new byte[] {0, 1, 2, 3};
-        Random random = new Random();
-        int start2 = random.Next(0, bytes.Length);
-        valuesToWrite = new byte[] {bytes[start2]};
-        TextTargetDeviceData.text = "Writing some new: " + valuesToWrite[0];
+
+        string strValues = $"{newCalibratedRotation.x},{newCalibratedRotation.y},{newCalibratedRotation.z},{newCalibratedRotation.w};";
+        TextTargetDeviceData.text = "Writing some new: " + strValues;
+        valuesToWrite = Encoding.ASCII.GetBytes(strValues); 
         
         writingThread = new Thread(WriteBleData);
         writingThread.Start();
@@ -247,7 +257,14 @@ public class BLEBehaviour : MonoBehaviour
             serviceUuid,
             characteristicUuids[0],
             valuesToWrite);
-        
+
+        Debug.Log($"Writing status: {ok}. {BLE.GetError()}");
+        // Notify the central that the value is updated
+        byte[] bytes = new byte[] {1};
+        ok = BLE.WritePackage(deviceId,
+            serviceUuid,
+            characteristicUuids[1],
+            bytes);
         Debug.Log($"Writing status: {ok}. {BLE.GetError()}");
         writingThread = null;
     }
@@ -260,13 +277,24 @@ public class BLEBehaviour : MonoBehaviour
             Debug.Log("Reading data from writeCharacteristic: " + Encoding.UTF8.GetString(packageReceived));
             return;
         }
-        result = Encoding.UTF8.GetString(packageReceived).Split(';')[0]; // ; signals the end of the message data
-        // Quaternion arrives of the form: f,f,f,f; where f is a float
-        //Debug.Log("result: " + result);
-        string[] splitResult = result.Split(',');
-        //newRotation = new Quaternion(float.Parse(splitResult[0]), float.Parse(splitResult[1]), float.Parse(splitResult[2]), float.Parse(splitResult[3]));
-        Vector3 ahrs = new Vector3(float.Parse(splitResult[0]), float.Parse(splitResult[1]), float.Parse(splitResult[2]));
-        newEulerRotation = new Vector3(-ahrs.y, ahrs.z, -ahrs.x);
+
+        if (charId == characteristicUuids[2])
+        {
+            result = Encoding.UTF8.GetString(packageReceived).Split(';')[0]; // ; signals the end of the message data
+            // Quaternion arrives of the form: f,f,f,f; where f is a float
+            //Debug.Log("result: " + result);
+            string[] splitResult = result.Split(',');
+            float x = float.Parse(splitResult[0]);
+            float y = float.Parse(splitResult[1]);
+            float z = float.Parse(splitResult[2]);
+            float w = float.Parse(splitResult[3]);
+            
+            newRotation = new Quaternion(float.Parse(splitResult[0]), float.Parse(splitResult[1]), float.Parse(splitResult[2]), float.Parse(splitResult[3]));
+            // Following: https://gamedev.stackexchange.com/questions/157946/converting-a-quaternion-in-a-right-to-left-handed-coordinate-system
+            //newRotation = new Quaternion(y, z, x, w);
+            //Vector3 ahrs = new Vector3(float.Parse(splitResult[0]), float.Parse(splitResult[1]), float.Parse(splitResult[2]));
+            //newEulerRotation = new Vector3(-ahrs.y, ahrs.z, -ahrs.x);
+        }
     }
 
 }

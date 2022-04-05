@@ -16,10 +16,10 @@ public class BLEBehaviourInspector : Editor
             _bleBehaviour.StartScanHandler();
         }
 
-        if (GUILayout.Button("Write"))
-        {
-            _bleBehaviour.StartWritingHandler();
-        }
+        // if (GUILayout.Button("Write"))
+        // {
+        //     _bleBehaviour.StartWritingHandler();
+        // }
         
 
     }
