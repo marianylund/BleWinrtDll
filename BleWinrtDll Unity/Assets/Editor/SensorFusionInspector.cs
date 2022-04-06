@@ -9,7 +9,7 @@ public class SensorFusionInspector : Editor
     {
         DrawDefaultInspector();
         _sensorFusion = target as SensorFusion;
-
+        
         if (GUILayout.Button("Calibrate"))
         {
             _sensorFusion.CalibrateBLEVuforia();

@@ -1,6 +1,7 @@
 ﻿using System;
 using UnityEngine;
 using System.IO.Ports;
+using AHRS;
 using Microsoft.Win32;
 using Packages.Rider.Editor.UnitTesting;
 using UnityEngine.Profiling.Experimental;
@@ -13,7 +14,8 @@ public class ArduinoComms : MonoBehaviour
     float _lastGyroReadTime = float.NaN;
 
     [SerializeField] private float magicValue = 0.35f;
-    
+    [SerializeField] private float samplePeriod = 1f / 119f;
+    [SerializeField] private float beta = 0.1f;
     [SerializeField]
     Vector3 changeCoordinateSystemGyro = -Vector3.one;
     
@@ -66,6 +68,8 @@ public class ArduinoComms : MonoBehaviour
     private float _ay;
     private float _az;
     private float _adelta;
+
+    private MadgwickAHRS _ahrs;
     
     void Start()
     {
@@ -78,39 +82,13 @@ public class ArduinoComms : MonoBehaviour
         _port.ReadTimeout = 0;
         _port.WriteTimeout = 0;
         _port.Open();
+        samplePeriod = 1f / 119f;
+        _ahrs = new MadgwickAHRS(samplePeriod, beta);
         Debug.Log(_port.IsOpen);
-        TestAccel();
-    }
-
-    private void TestAccel()
-    {
-        Vector3 rawAccel = new Vector3(0, 0, 1); // lying down
-        Vector3 accelWorld = new Vector3(rawAccel.y, rawAccel.z, rawAccel.x);
-        Debug.Assert(accelWorld == new Vector3(0, 1, 0));
-        // Do magic to convert to angles
-        
-        float vertical = accelWorld.x;
-        float lateral = Mathf.Sqrt(
-            accelWorld.y * accelWorld.y +
-            accelWorld.z * accelWorld.z);
-        float accAngleForward = -(Mathf.Atan2 ( lateral, vertical) * 180.0f) / Mathf.PI;
-        //accAngleForward *= Mathf.Sign(accelWorld.y);
-        
-        float forward = accelWorld.z;
-        float midsagittal = Mathf.Sqrt(
-            accelWorld.x * accelWorld.x +
-            accelWorld.y * accelWorld.y);
-        float accAngleRight = -(Mathf.Atan2 ( midsagittal, forward) * 180.0f) / Mathf.PI;
-        
-        Debug.Assert(vertical == 0, $"Expected vertical to be: 0, but was {vertical}");
-        Debug.Assert(lateral == 0, $"Expected lateral to be: ");
-        Debug.Assert(midsagittal == 0);
-        
     }
 
     void Update()
     {
-        return;
         try
         {
             while (true)
@@ -176,11 +154,6 @@ public class ArduinoComms : MonoBehaviour
             _accVector.x * _accVector.x +
             _accVector.y * _accVector.y);
         float accAngleRight = -(Mathf.Atan2 ( midsagittal, forward) * 180.0f) / Mathf.PI;
-        Debug.Log($"accAngleRight: {accAngleRight}, x: {Mathf.Sign(_accVector.x)}, y: {Mathf.Sign(_accVector.y)}, z: {Mathf.Sign(_accVector.z)}" +
-                          $"acc x y: {Mathf.Sign(accAngleRight) * Mathf.Sign(_accVector.y) * Mathf.Sign(_accVector.x)}");
-        accAngleRight *= Mathf.Sign(_accVector.y);
-        //var accAngleRight = (Mathf.Atan(-1 * _up.z / Mathf.Sqrt((float)(Math.Pow(_up.x, 2.0) + Math.Pow(_up.y, 2.0)))) * 180 / Mathf.PI) * -1;
-        //var accAngleRight = (Mathf.Atan2(-1 * _accVector.z, Mathf.Sqrt((float)(Math.Pow(_accVector.x, 2.0) + Math.Pow(_accVector.y, 2.0)))) * 180 / Mathf.PI) * -1;
 
         var cosForward = Mathf.Cos(accAngleForward); // theta 
         var sinForward = Mathf.Sin(accAngleForward); // theta 
@@ -197,9 +170,12 @@ public class ArduinoComms : MonoBehaviour
         _accRotation = new Vector3(accAngleRight, accAngleUp, accAngleForward);
         //Debug.Log($"accAngleRight: {accAngleRight}\taccAngleForward: {accAngleForward}\taccAngleUp: {accAngleUp}=>\t{tilt}");
 
-        Quaternion accQuaternion = Quaternion.Euler(_accRotation);
-        this.rightUpTransform.localRotation = accQuaternion;
-
+        // Quaternion accQuaternion = Quaternion.Euler(_accRotation);
+        // _ahrs.SamplePeriod = samplePeriod;
+        // _ahrs.Beta = beta;
+        // _ahrs.Update(_gz *changeCoordinateSystemGyro.x, _gx*changeCoordinateSystemGyro.y, _gy*changeCoordinateSystemGyro.z, _accVector.x, _accVector.y, _accVector.z);
+        // // _ahrs starts with 1, 0, 0, 0
+        // this.rightUpTransform.rotation = new Quaternion(_ahrs.Quaternion[1], _ahrs.Quaternion[2], _ahrs.Quaternion[3], _ahrs.Quaternion[0]);// accQuaternion;
 
         // TODO: Use the accelerometer and magnetometer to compensate gyro drift.
         this._right = gyroController.right;
@@ -209,18 +185,10 @@ public class ArduinoComms : MonoBehaviour
 
         rightTransform.position = _right.normalized * magicValue;
         
-        //Debug.DrawRay(gyroController.position, _right * 1.2f, Color.magenta, duration);
-
-
-        var accelMagneRotation = Quaternion.Inverse(Quaternion.LookRotation(gyroController.forward, this._accVector)); //Quaternion.Inverse(Quaternion.LookRotation(this._forward, this._up));
-       // this.rightUpTransform.rotation = accelMagneRotation;
-        
         Debug.DrawRay(gyroController.position, rightUpTransform.right * raySize * 1.2f, Color.magenta, duration);
         Debug.DrawRay(gyroController.position, _forward * raySize * 1.2f, Color.cyan, duration);
         
         this.fusedController.rotation = Quaternion.Lerp(this.fusedController.rotation, accelMagneRotation, this.driftCompensationRatio);
-        
-
         
         // Drawing rays
         Debug.DrawRay(gyroController.position, gyroController.forward * raySize, Color.blue, duration);
@@ -232,12 +200,11 @@ public class ArduinoComms : MonoBehaviour
         Debug.DrawRay(fusedController.position, fusedController.up * raySize, Color.green, duration);
         
         Debug.DrawRay(rightUpTransform.position, rightUpTransform.forward * raySize, Color.blue, duration);
-        
-        var local = Quaternion.Inverse(rightUpTransform.rotation) * Vector3.forward;
-        Debug.DrawRay(rightUpTransform.position, local * raySize * 1.3f, Color.cyan, duration);
         Debug.DrawRay(rightUpTransform.position, rightUpTransform.right * raySize, Color.red, duration);
         Debug.DrawRay(rightUpTransform.position, rightUpTransform.up * raySize, Color.green, duration);
     }
+    
+    
     
 }
     
