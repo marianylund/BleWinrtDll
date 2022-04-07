@@ -2,10 +2,6 @@
 using UnityEngine;
 using System.IO.Ports;
 using AHRS;
-using Microsoft.Win32;
-using Packages.Rider.Editor.UnitTesting;
-using UnityEngine.Profiling.Experimental;
-using UnityEngine.Serialization;
 
 // The code inspired by CreatiXR Controllers: https://github.com/CreatiXR/Controllers/blob/master/Unity/ControllerModel/Assets/ArduinoComms.cs
 public class ArduinoComms : MonoBehaviour
@@ -14,8 +10,6 @@ public class ArduinoComms : MonoBehaviour
     float _lastGyroReadTime = float.NaN;
 
     [SerializeField] private float magicValue = 0.35f;
-    [SerializeField] private float samplePeriod = 1f / 119f;
-    [SerializeField] private float beta = 0.1f;
     [SerializeField]
     Vector3 changeCoordinateSystemGyro = -Vector3.one;
     
@@ -47,6 +41,16 @@ public class ArduinoComms : MonoBehaviour
 
     float duration = 0.01f;
     private float raySize = 0.3f;
+
+    private float pitchAcc;
+    private float rollAcc;
+    private float pitchGyro;
+    private float rollGyro;
+    private float yawGyro;
+    private float pitchComp;
+    private float rollComp;
+    private Vector3 integratedGyroData; 
+
     
     private Vector3 _accRotation;
     private Vector3 _accVector;
@@ -73,6 +77,8 @@ public class ArduinoComms : MonoBehaviour
     
     void Start()
     {
+        Test();
+        return;
         System.ComponentModel.IContainer components =
             new System.ComponentModel.Container();
         _port = new System.IO.Ports.SerialPort(components);
@@ -82,19 +88,95 @@ public class ArduinoComms : MonoBehaviour
         _port.ReadTimeout = 0;
         _port.WriteTimeout = 0;
         _port.Open();
-        samplePeriod = 1f / 119f;
-        _ahrs = new MadgwickAHRS(samplePeriod, beta);
-        Debug.Log(_port.IsOpen);
+        Debug.Assert(_port.IsOpen);
+    }
+
+    private void Test()
+    {
+        float tol = 0.001f;
+        Vector3 vec = new Vector3(0, 0, 0);
+        var quat = eulerToQuat(vec.x, vec.y, vec.z);
+        var ans = Quaternion.Euler(vec);
+        Debug.Assert(Math.Abs(quat[0] - ans.x) < tol && Math.Abs(quat[1] - ans.y) < tol && Math.Abs(quat[2] - ans.z) < tol && Math.Abs(quat[3] - ans.w) < tol, 
+            $"vec: {vec}, quat:[{quat[0]}, {quat[1]}, {quat[2]}, {quat[3]}], ans: {ans}");
+        
+        vec = new Vector3(90, 0, 0);
+        quat = eulerToQuat(vec.x, vec.y, vec.z);
+        ans = Quaternion.Euler(vec);
+        Debug.Assert(Math.Abs(quat[0] - ans.x) < tol && Math.Abs(quat[1] - ans.y) < tol && Math.Abs(quat[2] - ans.z) < tol && Math.Abs(quat[3] - ans.w) < tol, 
+            $"vec: {vec}, quat:[{quat[0]}, {quat[1]}, {quat[2]}, {quat[3]}], ans: {ans}");
+        
+        vec = new Vector3(0, 180, 0);
+        quat = eulerToQuat(vec.x, vec.y, vec.z);
+        ans = Quaternion.Euler(vec);
+        Debug.Assert(Math.Abs(quat[0] - ans.x) < tol && Math.Abs(quat[1] - ans.y) < tol && Math.Abs(quat[2] - ans.z) < tol && Math.Abs(quat[3] - ans.w) < tol, 
+            $"vec: {vec}, quat:[{quat[0]}, {quat[1]}, {quat[2]}, {quat[3]}], ans: {ans}");
+        
+        vec = new Vector3(0, 0, -270);
+        quat = eulerToQuat(vec.x, vec.y, vec.z);
+        ans = Quaternion.Euler(vec);
+        Debug.Assert(Math.Abs(quat[0] - ans.x) < tol && Math.Abs(quat[1] - ans.y) < tol && Math.Abs(quat[2] - ans.z) < tol && Math.Abs(quat[3] - ans.w) < tol, 
+            $"vec: {vec}, quat:[{quat[0]}, {quat[1]}, {quat[2]}, {quat[3]}], ans: {ans}");
+        
+        vec = new Vector3(30, -90, -270);
+        quat = eulerToQuat(vec.x, vec.y, vec.z);
+        ans = Quaternion.Euler(vec);
+        Debug.Assert(Math.Abs(quat[0] - ans.x) < tol && Math.Abs(quat[1] - ans.y) < tol && Math.Abs(quat[2] - ans.z) < tol && Math.Abs(quat[3] - ans.w) < tol, 
+            $"vec: {vec}, quat:[{quat[0]}, {quat[1]}, {quat[2]}, {quat[3]}], ans: {ans}");
+        
+        vec = new Vector3(-90, 232, 180);
+        quat = eulerToQuat(vec.x, vec.y, vec.z);
+        ans = Quaternion.Euler(vec);
+        Debug.Assert(Math.Abs(quat[0] - ans.x) < tol && Math.Abs(quat[1] - ans.y) < tol && Math.Abs(quat[2] - ans.z) < tol && Math.Abs(quat[3] - ans.w) < tol, 
+            $"vec: {vec}, quat:[{quat[0]}, {quat[1]}, {quat[2]}, {quat[3]}], ans: {ans}");
+
+    }
+
+    float[] eulerToQuat(float x, float y, float z)
+    {
+        // Expects RADIANS
+        float yaw = x;
+        float pitch = y;
+        float roll = z;
+
+        double yawOver2 = yaw * 0.5f;
+        float cosYawOver2 = (float)System.Math.Cos(yawOver2);
+        float sinYawOver2 = (float)System.Math.Sin(yawOver2);
+        double pitchOver2 = pitch * 0.5f;
+        float cosPitchOver2 = (float)System.Math.Cos(pitchOver2);
+        float sinPitchOver2 = (float)System.Math.Sin(pitchOver2);
+        double rollOver2 = roll * 0.5f;
+        float cosRollOver2 = (float)System.Math.Cos(rollOver2);
+        float sinRollOver2 = (float)System.Math.Sin(rollOver2);    
+        
+        float[] quat = new float[4];
+        quat[0] = sinYawOver2 * cosPitchOver2 * cosRollOver2 + cosYawOver2 * sinPitchOver2 * sinRollOver2; // x
+        quat[1] = cosYawOver2 * sinPitchOver2 * cosRollOver2 - sinYawOver2 * cosPitchOver2 * sinRollOver2; // y
+        quat[2] = cosYawOver2 * cosPitchOver2 * sinRollOver2 - sinYawOver2 * sinPitchOver2 * cosRollOver2; // z
+        quat[3] = cosYawOver2 * cosPitchOver2 * cosRollOver2 + sinYawOver2 * sinPitchOver2 * sinRollOver2; // w
+
+        return quat;
+    }
+
+    private void OnDisable()
+    {
+        pitchGyro =0;
+        yawGyro =0;
+        rollGyro =0;
+        gyroController.rotation = Quaternion.identity;
+        fusedController.rotation = Quaternion.identity;
+        rightUpTransform.rotation = Quaternion.identity;
     }
 
     void Update()
     {
+        return;
         try
         {
             while (true)
             {
                 _line = _port.ReadLine();
-                Debug.Log(_line);
+                //Debug.Log(_line);
                 
                 if (_line.StartsWith("ACCEL:"))
                 {
@@ -105,9 +187,12 @@ public class ArduinoComms : MonoBehaviour
                     _az = float.Parse(_atokens[4]);
                     this._accVector = new Vector3(_ay * changeCoordinateSystemAccel.x, _az * changeCoordinateSystemAccel.y, _ax* changeCoordinateSystemAccel.z);
                     this.upTransform.position = this._accVector.normalized * magicValue;
+
+                    pitchAcc = Mathf.Atan2(_accVector.x, _accVector.y) * 180/Mathf.PI;
+                    rollAcc = Mathf.Atan2(_accVector.z, _accVector.y) * 180/Mathf.PI;
                 }
 
-                if (_line.StartsWith("GYRO:"))
+                if (_line.StartsWith("GYRO:")) // Expects deg per sec
                 {
                     _gtokens = _line.Split('\t');
                     // microseconds controller app time
@@ -120,15 +205,11 @@ public class ArduinoComms : MonoBehaviour
                     _gdelta = (_gtime - _lastGyroReadTime) / 1000000f;
                     if (!float.IsNaN(this._lastGyroReadTime))
                     {
-                        this.gyroController.rotation *= Quaternion.Euler(
+                        integratedGyroData = new Vector3(
                             _gy * _gdelta * changeCoordinateSystemGyro.x,
                             _gz * _gdelta * changeCoordinateSystemGyro.y,
                             _gx * _gdelta * changeCoordinateSystemGyro.z);
-                        
-                        this.fusedController.rotation *= Quaternion.Euler(
-                            _gy * _gdelta * changeCoordinateSystemGyro.x,
-                            _gz * _gdelta * changeCoordinateSystemGyro.y,
-                            _gx * _gdelta * changeCoordinateSystemGyro.z);
+                        this.gyroController.rotation *= Quaternion.Euler(integratedGyroData);
                     }
                     this._lastGyroReadTime = _gtime;
                 }
@@ -139,56 +220,14 @@ public class ArduinoComms : MonoBehaviour
             Debug.Log(e);
         }
 
-        //var accAngleForward = (Mathf.Atan(-1 * _up.x / Mathf.Sqrt((float)(Math.Pow(_up.z, 2.0) + Math.Pow(_up.y, 2.0)))) * 180 / Mathf.PI) * -1;
-        //var accAngleForward = (Mathf.Atan2(-1 * _accVector.x, Mathf.Sqrt((float)(Math.Pow(_accVector.z, 2.0) + Math.Pow(_accVector.y, 2.0)))) * 180 / Mathf.PI) * -1;
+        pitchGyro += integratedGyroData.x;
+        yawGyro += integratedGyroData.y;
+        rollGyro += integratedGyroData.z;
         
-        float vertical = _accVector.x;
-        float lateral = Mathf.Sqrt(
-            _accVector.y * _accVector.y +
-            _accVector.z * _accVector.z);
-        float accAngleForward = -(Mathf.Atan2 ( lateral, vertical) * 180.0f) / Mathf.PI;
-        //accAngleForward *= Mathf.Sign(_accVector.y);
-        
-        float forward = _accVector.z;
-        float midsagittal = Mathf.Sqrt(
-            _accVector.x * _accVector.x +
-            _accVector.y * _accVector.y);
-        float accAngleRight = -(Mathf.Atan2 ( midsagittal, forward) * 180.0f) / Mathf.PI;
+        pitchComp = pitchGyro * (1f - driftCompensationRatio) + pitchAcc * driftCompensationRatio;
+        rollComp = rollGyro * (1f - driftCompensationRatio) + rollAcc * driftCompensationRatio;
 
-        var cosForward = Mathf.Cos(accAngleForward); // theta 
-        var sinForward = Mathf.Sin(accAngleForward); // theta 
-        var sinRight = Mathf.Sin(accAngleRight); // f
-        var cosRight = Mathf.Cos(accAngleRight); // f
-
-        _tilt = new Vector3(
-            cosForward + sinForward * sinRight + sinForward * cosRight,
-            cosRight - sinRight,
-            -sinForward + cosForward * sinRight + cosForward * cosRight);
-
-        var accAngleUp = 0f;//gyroController.transform.eulerAngles.y;//Mathf.Atan2(-tilt[1], tilt[0]);
-
-        _accRotation = new Vector3(accAngleRight, accAngleUp, accAngleForward);
-        //Debug.Log($"accAngleRight: {accAngleRight}\taccAngleForward: {accAngleForward}\taccAngleUp: {accAngleUp}=>\t{tilt}");
-
-        // Quaternion accQuaternion = Quaternion.Euler(_accRotation);
-        // _ahrs.SamplePeriod = samplePeriod;
-        // _ahrs.Beta = beta;
-        // _ahrs.Update(_gz *changeCoordinateSystemGyro.x, _gx*changeCoordinateSystemGyro.y, _gy*changeCoordinateSystemGyro.z, _accVector.x, _accVector.y, _accVector.z);
-        // // _ahrs starts with 1, 0, 0, 0
-        // this.rightUpTransform.rotation = new Quaternion(_ahrs.Quaternion[1], _ahrs.Quaternion[2], _ahrs.Quaternion[3], _ahrs.Quaternion[0]);// accQuaternion;
-
-        // TODO: Use the accelerometer and magnetometer to compensate gyro drift.
-        this._right = gyroController.right;
-
-        this._forward = Vector3.Cross(this._accVector.normalized, gyroController.right);
-        Debug.DrawRay(gyroController.position, _accVector* 1.2f, Color.yellow, duration);
-
-        rightTransform.position = _right.normalized * magicValue;
-        
-        Debug.DrawRay(gyroController.position, rightUpTransform.right * raySize * 1.2f, Color.magenta, duration);
-        Debug.DrawRay(gyroController.position, _forward * raySize * 1.2f, Color.cyan, duration);
-        
-        this.fusedController.rotation = Quaternion.Lerp(this.fusedController.rotation, accelMagneRotation, this.driftCompensationRatio);
+        fusedController.rotation = Quaternion.Euler(pitchComp, yawGyro, rollComp);
         
         // Drawing rays
         Debug.DrawRay(gyroController.position, gyroController.forward * raySize, Color.blue, duration);

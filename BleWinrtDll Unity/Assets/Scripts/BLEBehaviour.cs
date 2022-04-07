@@ -75,11 +75,8 @@ public class BLEBehaviour : MonoBehaviour
         if (deviceId != null && deviceId != "-1")
         {
             // Target device is connected and GUI knows.
-            if (ble.isConnected && isConnected && _readingTimer > readingFrameRate)
+            if (ble.isConnected && isConnected)
             {
-                //Debug.Log($"timer: {_readingTimer}, frameRate: {readingFrameRate}, frames: {_frames}");
-                _readingTimer = 0f;
-                _frames = 0;
                 UpdateGuiText("readData");
             }
             // Target device is connected, but GUI hasn't updated yet.
@@ -278,8 +275,12 @@ public class BLEBehaviour : MonoBehaviour
             return;
         }
 
-        if (charId == characteristicUuids[2])
+        if (charId == characteristicUuids[2] && _readingTimer > readingFrameRate)
         {
+            //Debug.Log($"timer: {_readingTimer}, frameRate: {readingFrameRate}, frames: {_frames}");
+            _readingTimer = 0f;
+            _frames = 0;
+            // TODO: one day go through string split by comma and then stop when meeting ;
             result = Encoding.UTF8.GetString(packageReceived).Split(';')[0]; // ; signals the end of the message data
             // Quaternion arrives of the form: f,f,f,f; where f is a float
             //Debug.Log("result: " + result);
@@ -289,7 +290,7 @@ public class BLEBehaviour : MonoBehaviour
             float z = float.Parse(splitResult[2]);
             float w = float.Parse(splitResult[3]);
             
-            newRotation = new Quaternion(float.Parse(splitResult[0]), float.Parse(splitResult[1]), float.Parse(splitResult[2]), float.Parse(splitResult[3]));
+            newRotation = new Quaternion(x, y, z, w);
             // Following: https://gamedev.stackexchange.com/questions/157946/converting-a-quaternion-in-a-right-to-left-handed-coordinate-system
             //newRotation = new Quaternion(y, z, x, w);
             //Vector3 ahrs = new Vector3(float.Parse(splitResult[0]), float.Parse(splitResult[1]), float.Parse(splitResult[2]));

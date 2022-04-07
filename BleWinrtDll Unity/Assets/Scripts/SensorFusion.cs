@@ -26,9 +26,9 @@ public class SensorFusion : MonoBehaviour
     /// </summary>
     public void CalibrateBLEVuforia()
     {
-        Quaternion diff = vuforiaSimulationObject.rotation * Quaternion.Inverse(_lastBleRotation);
-        Debug.Log("Rotation difference: " + diff + ", euler: " + diff.eulerAngles);
-        _ble.StartWritingHandler(diff);
+       // Quaternion diff = vuforiaSimulationObject.rotation * Quaternion.Inverse(_lastBleRotation);
+        //Debug.Log("Rotation difference: " + diff + ", euler: " + diff.eulerAngles);
+        _ble.StartWritingHandler(Quaternion.identity);
         // _lastVuforiaLocalRotation = vuforiaSimulationObject.localEulerAngles;
         // _lastVuforiaPosition = vuforiaSimulationObject.position;
         //
