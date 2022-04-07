@@ -268,20 +268,30 @@ public class BLEBehaviour : MonoBehaviour
 
     private void ReadBleData(object obj)
     {
+        // Go through all packages until it is the newest correct package
+        byte[] prevPackage = BLE.ReadBytes(out string prevCharId);
         byte[] packageReceived = BLE.ReadBytes(out string charId);
+        while (packageReceived.Length != 1 && packageReceived[0] == 0x0)
+        {
+            if (charId == characteristicUuids[2])
+            {
+                prevPackage = packageReceived;
+                prevCharId = charId;
+            }
+            packageReceived = BLE.ReadBytes(out charId);
+        }
         if (charId == characteristicUuids[0])
         {
             Debug.Log("Reading data from writeCharacteristic: " + Encoding.UTF8.GetString(packageReceived));
             return;
         }
+        
 
-        if (charId == characteristicUuids[2] && _readingTimer > readingFrameRate)
+        if (prevCharId == characteristicUuids[2])
         {
             //Debug.Log($"timer: {_readingTimer}, frameRate: {readingFrameRate}, frames: {_frames}");
-            _readingTimer = 0f;
-            _frames = 0;
             // TODO: one day go through string split by comma and then stop when meeting ;
-            result = Encoding.UTF8.GetString(packageReceived).Split(';')[0]; // ; signals the end of the message data
+            result = Encoding.UTF8.GetString(prevPackage).Split(';')[0]; // ; signals the end of the message data
             // Quaternion arrives of the form: f,f,f,f; where f is a float
             //Debug.Log("result: " + result);
             string[] splitResult = result.Split(',');
