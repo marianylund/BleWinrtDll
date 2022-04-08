@@ -1,4 +1,3 @@
-using System;
 using UnityEngine;
 
 public class SensorFusion : MonoBehaviour
@@ -7,11 +6,7 @@ public class SensorFusion : MonoBehaviour
     public Transform vuforiaSimulationObject;
     private BLEBehaviour _ble;
     
-    private Vector3 _lastVuforiaLocalRotation = Vector3.zero;
-    private Vector3 _lastVuforiaPosition = Vector3.zero;
     private Quaternion _lastBleRotation = Quaternion.identity;
-    [SerializeField]
-    private Vector3 lastRotationDifference = Vector3.zero;
     
     void Start()
     {
@@ -29,10 +24,6 @@ public class SensorFusion : MonoBehaviour
        // Quaternion diff = vuforiaSimulationObject.rotation * Quaternion.Inverse(_lastBleRotation);
         //Debug.Log("Rotation difference: " + diff + ", euler: " + diff.eulerAngles);
         _ble.StartWritingHandler(Quaternion.identity);
-        // _lastVuforiaLocalRotation = vuforiaSimulationObject.localEulerAngles;
-        // _lastVuforiaPosition = vuforiaSimulationObject.position;
-        //
-        // lastRotationDifference = _lastVuforiaLocalRotation - _lastBleRotation;
     }
 
     private void FixedUpdate()

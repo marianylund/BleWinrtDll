@@ -15,6 +15,11 @@ public class BLEBehaviourInspector : Editor
         {
             _bleBehaviour.StartScanHandler();
         }
+        
+        if (GUILayout.Button("Disconnect"))
+        {
+            _bleBehaviour.Disconnect();
+        }
 
         // if (GUILayout.Button("Write"))
         // {

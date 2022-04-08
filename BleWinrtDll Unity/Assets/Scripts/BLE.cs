@@ -249,7 +249,6 @@ public class BLE
     {
         Impl.BLEData packageReceived;
         bool result = Impl.PollData(out packageReceived, true);
-
         if (result)
         {
             //Debug.Log("Size: " + packageReceived.size);
